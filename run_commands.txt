@@ -30,3 +30,16 @@ export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval 
 export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator && python chunk_video_generator.py --chunk-file ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_11_expert-level_balance_loss.md --output-dir ../../deepseek-moe-explainer/generated_videos --max-retries 3
 
 export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/deepseek-moe-explainer/generated_videos/spmoe_architecture/chunk_11_expert-level_balance_loss && python -m manim -pql --media_dir ./media manim_code.py ConceptScene
+
+# ======================================
+# Chunk Summary Generator Commands
+# ======================================
+
+# Generate summary for a single chunk:
+cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/summary_generator && python chunk_summary_generator.py --chunk-file ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_01_deepseekmoe_overview.md --output-dir ../../deepseek-moe-explainer/chunk-summary
+
+# Generate summaries for all chunks in a section (spmoe_architecture):
+cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/summary_generator && for chunk in ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_*.md; do echo "Processing: $chunk"; python chunk_summary_generator.py --chunk-file "$chunk" --output-dir ../../deepseek-moe-explainer/chunk-summary; done
+
+# One-liner with pyenv activation (for fresh terminal):
+export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/summary_generator && for chunk in ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_*.md; do echo "========================================"; echo "Processing: $chunk"; python chunk_summary_generator.py --chunk-file "$chunk" --output-dir ../../deepseek-moe-explainer/chunk-summary; done
