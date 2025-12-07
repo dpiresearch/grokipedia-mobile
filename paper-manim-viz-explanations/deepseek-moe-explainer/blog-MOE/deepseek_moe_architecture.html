@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek MoE Architecture Deep Dive</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 50px;
+        }
+        
+        h2 {
+            color: #2c3e50;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        h3 {
+            color: #34495e;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+        
+        .architecture-diagram {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #667eea;
+        }
+        
+        .layer-box {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .moe-box {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .dense-box {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .expert-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            margin: 15px 0;
+        }
+        
+        .expert-cell {
+            background: #667eea;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        
+        .spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .spec-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        
+        .spec-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .spec-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .formula {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .flow-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .flow-box {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 200px;
+        }
+        
+        .flow-arrow {
+            font-size: 2em;
+            color: #667eea;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .expert-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 DeepSeek MoE Architecture</h1>
+            <p>Complete Breakdown of Mixture of Experts Language Model</p>
+        </header>
+        
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section">
+                <h2>📊 Architecture Overview</h2>
+                
+                <table class="spec-table">
+                    <tr>
+                        <th>Component</th>
+                        <th>Specification</th>
+                        <th>Details</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Model Type</strong></td>
+                        <td>DeepseekForCausalLM</td>
+                        <td>Autoregressive language model</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Hidden Dimension</strong></td>
+                        <td>2048</td>
+                        <td>Base model dimension (d_model)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Vocabulary Size</strong></td>
+                        <td>102,400 tokens</td>
+                        <td>Embedding and output vocab</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Layers</strong></td>
+                        <td>28 decoder layers</td>
+                        <td>1 dense + 27 MoE layers</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Number of Experts</strong></td>
+                        <td>64 experts per MoE layer</td>
+                        <td>Plus 1 shared expert</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Normalization</strong></td>
+                        <td>RMSNorm</td>
+                        <td>Root Mean Square Layer Normalization</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Position Encoding</strong></td>
+                        <td>RoPE</td>
+                        <td>Rotary Position Embedding</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Attention Type</strong></td>
+                        <td>SDPA</td>
+                        <td>Scaled Dot Product Attention</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Complete Architecture Diagram -->
+            <div class="section">
+                <h2>🏗️ Complete Architecture Diagram</h2>
+                
+                <div class="architecture-diagram">
+                    <div class="flow-diagram">
+                        <div class="flow-box" style="background: #e74c3c;">Input Tokens</div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-box" style="background: #3498db;">Embedding Layer (102400 → 2048)</div>
+                        <div class="flow-arrow">↓</div>
+                        
+                        <!-- Layer 0 -->
+                        <div class="layer-box dense-box">
+                            <h3 style="color: white; margin: 0 0 10px 0;">Layer 0: Dense Layer</h3>
+                            <div style="font-size: 0.9em;">
+                                ┌─────────────────────────────┐<br>
+                                │   RMSNorm (2048)            │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                ┌─────────────────────────────┐<br>
+                                │  Self-Attention (SDPA)      │<br>
+                                │  • Q, K, V: 2048 → 2048    │<br>
+                                │  • O: 2048 → 2048          │<br>
+                                │  • RoPE Embeddings         │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                       Residual (+)<br>
+                                              ↓<br>
+                                ┌─────────────────────────────┐<br>
+                                │   RMSNorm (2048)            │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                ┌─────────────────────────────┐<br>
+                                │  Standard MLP               │<br>
+                                │  • Gate: 2048 → 10944      │<br>
+                                │  • Up: 2048 → 10944        │<br>
+                                │  • SiLU Activation         │<br>
+                                │  • Down: 10944 → 2048      │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                       Residual (+)<br>
+                            </div>
+                        </div>
+                        
+                        <div class="flow-arrow">↓</div>
+                        
+                        <!-- Layers 1-27 -->
+                        <div class="layer-box moe-box">
+                            <h3 style="color: white; margin: 0 0 10px 0;">Layers 1-27: MoE Layers (×27)</h3>
+                            <div style="font-size: 0.9em;">
+                                ┌─────────────────────────────┐<br>
+                                │   RMSNorm (2048)            │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                ┌─────────────────────────────┐<br>
+                                │  Self-Attention (SDPA)      │<br>
+                                │  • Q, K, V: 2048 → 2048    │<br>
+                                │  • O: 2048 → 2048          │<br>
+                                │  • RoPE Embeddings         │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                       Residual (+)<br>
+                                              ↓<br>
+                                ┌─────────────────────────────┐<br>
+                                │   RMSNorm (2048)            │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                ┌─────────────────────────────┐<br>
+                                │    <strong>MoE Layer</strong>              │<br>
+                                │                             │<br>
+                                │  ┌───────────────────────┐ │<br>
+                                │  │   MoEGate (Router)    │ │<br>
+                                │  │   Selects top-k       │ │<br>
+                                │  └───────────────────────┘ │<br>
+                                │            ↓               │<br>
+                                │  ┌───────────────────────┐ │<br>
+                                │  │  64 Expert MLPs       │ │<br>
+                                │  │  Gate: 2048 → 1408   │ │<br>
+                                │  │  Up: 2048 → 1408     │ │<br>
+                                │  │  Down: 1408 → 2048   │ │<br>
+                                │  └───────────────────────┘ │<br>
+                                │            +               │<br>
+                                │  ┌───────────────────────┐ │<br>
+                                │  │  Shared Expert MLP    │ │<br>
+                                │  │  Gate: 2048 → 2816   │ │<br>
+                                │  │  Up: 2048 → 2816     │ │<br>
+                                │  │  Down: 2816 → 2048   │ │<br>
+                                │  └───────────────────────┘ │<br>
+                                └─────────────────────────────┘<br>
+                                              ↓<br>
+                                       Residual (+)<br>
+                            </div>
+                        </div>
+                        
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-box" style="background: #3498db;">Final RMSNorm (2048)</div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-box" style="background: #e74c3c;">LM Head (2048 → 102400)</div>
+                        <div class="flow-arrow">↓</div>
+                        <div class="flow-box" style="background: #27ae60;">Output Logits</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MoE Deep Dive -->
+            <div class="section">
+                <h2>🔀 Mixture of Experts (MoE) Deep Dive</h2>
+                
+                <div class="info-box">
+                    <strong>Key Innovation:</strong> MoE layers allow the model to have a massive parameter count while only activating a subset of parameters for each token. This provides better efficiency and specialization.
+                </div>
+
+                <h3>MoE Architecture Components</h3>
+                
+                <div class="grid-2">
+                    <div class="layer-box">
+                        <h4>🎯 MoE Gate (Router)</h4>
+                        <p><strong>Function:</strong> Determines which experts process each token</p>
+                        <div class="formula">
+G(x) = Softmax(x · W_g)<br>
+Top-K experts selected per token
+                        </div>
+                        <p><strong>Purpose:</strong> Dynamic routing based on input content</p>
+                    </div>
+                    
+                    <div class="layer-box">
+                        <h4>👥 64 Routed Experts</h4>
+                        <p><strong>Specification:</strong> Each expert is a smaller MLP</p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>Gate projection: 2048 → 1408</li>
+                            <li>Up projection: 2048 → 1408</li>
+                            <li>Down projection: 1408 → 2048</li>
+                            <li>Activation: SiLU</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>Expert Grid Visualization (64 Experts)</h3>
+                <div class="expert-grid">
+                    <div class="expert-cell">E0</div>
+                    <div class="expert-cell">E1</div>
+                    <div class="expert-cell">E2</div>
+                    <div class="expert-cell">E3</div>
+                    <div class="expert-cell">E4</div>
+                    <div class="expert-cell">E5</div>
+                    <div class="expert-cell">E6</div>
+                    <div class="expert-cell">E7</div>
+                    <div class="expert-cell">E8</div>
+                    <div class="expert-cell">E9</div>
+                    <div class="expert-cell">E10</div>
+                    <div class="expert-cell">E11</div>
+                    <div class="expert-cell">E12</div>
+                    <div class="expert-cell">E13</div>
+                    <div class="expert-cell">E14</div>
+                    <div class="expert-cell">E15</div>
+                    <div class="expert-cell">E16</div>
+                    <div class="expert-cell">E17</div>
+                    <div class="expert-cell">E18</div>
+                    <div class="expert-cell">E19</div>
+                    <div class="expert-cell">E20</div>
+                    <div class="expert-cell">E21</div>
+                    <div class="expert-cell">E22</div>
+                    <div class="expert-cell">E23</div>
+                    <div class="expert-cell">E24</div>
+                    <div class="expert-cell">E25</div>
+                    <div class="expert-cell">E26</div>
+                    <div class="expert-cell">E27</div>
+                    <div class="expert-cell">E28</div>
+                    <div class="expert-cell">E29</div>
+                    <div class="expert-cell">E30</div>
+                    <div class="expert-cell">E31</div>
+                    <div class="expert-cell">E32</div>
+                    <div class="expert-cell">E33</div>
+                    <div class="expert-cell">E34</div>
+                    <div class="expert-cell">E35</div>
+                    <div class="expert-cell">E36</div>
+                    <div class="expert-cell">E37</div>
+                    <div class="expert-cell">E38</div>
+                    <div class="expert-cell">E39</div>
+                    <div class="expert-cell">E40</div>
+                    <div class="expert-cell">E41</div>
+                    <div class="expert-cell">E42</div>
+                    <div class="expert-cell">E43</div>
+                    <div class="expert-cell">E44</div>
+                    <div class="expert-cell">E45</div>
+                    <div class="expert-cell">E46</div>
+                    <div class="expert-cell">E47</div>
+                    <div class="expert-cell">E48</div>
+                    <div class="expert-cell">E49</div>
+                    <div class="expert-cell">E50</div>
+                    <div class="expert-cell">E51</div>
+                    <div class="expert-cell">E52</div>
+                    <div class="expert-cell">E53</div>
+                    <div class="expert-cell">E54</div>
+                    <div class="expert-cell">E55</div>
+                    <div class="expert-cell">E56</div>
+                    <div class="expert-cell">E57</div>
+                    <div class="expert-cell">E58</div>
+                    <div class="expert-cell">E59</div>
+                    <div class="expert-cell">E60</div>
+                    <div class="expert-cell">E61</div>
+                    <div class="expert-cell">E62</div>
+                    <div class="expert-cell">E63</div>
+                </div>
+
+                <h3>Shared Expert</h3>
+                <div class="layer-box" style="background: #27ae60; color: white;">
+                    <h4 style="color: white;">🌟 Shared Expert (Always Active)</h4>
+                    <p><strong>Specification:</strong> Larger MLP that processes ALL tokens</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Gate projection: 2048 → 2816</li>
+                        <li>Up projection: 2048 → 2816</li>
+                        <li>Down projection: 2816 → 2048</li>
+                        <li>Activation: SiLU</li>
+                    </ul>
+                    <p style="margin-top: 10px;"><strong>Purpose:</strong> Captures common patterns across all inputs, ensuring baseline processing for every token</p>
+                </div>
+
+                <h3>MoE Forward Pass</h3>
+                <div class="formula">
+<strong>Step 1: Routing</strong><br>
+router_logits = MoEGate(x)  # Shape: [batch, seq_len, 64]<br>
+routing_weights, selected_experts = TopK(router_logits, k)  # Select top-k experts<br>
+<br>
+<strong>Step 2: Expert Computation</strong><br>
+expert_outputs = []<br>
+for expert_id in selected_experts:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;expert_out = Expert[expert_id](x)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;expert_outputs.append(expert_out)<br>
+<br>
+<strong>Step 3: Weighted Combination</strong><br>
+routed_output = Σ(routing_weights[i] * expert_outputs[i])<br>
+<br>
+<strong>Step 4: Add Shared Expert</strong><br>
+shared_output = SharedExpert(x)<br>
+final_output = routed_output + shared_output
+                </div>
+            </div>
+
+            <!-- Component Details -->
+            <div class="section">
+                <h2>🔧 Detailed Component Breakdown</h2>
+
+                <h3>1. Self-Attention (SDPA)</h3>
+                <div class="layer-box">
+                    <h4>Projections</h4>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>Q (Query):</strong> Linear(2048 → 2048, bias=False)</li>
+                        <li><strong>K (Key):</strong> Linear(2048 → 2048, bias=False)</li>
+                        <li><strong>V (Value):</strong> Linear(2048 → 2048, bias=False)</li>
+                        <li><strong>O (Output):</strong> Linear(2048 → 2048, bias=False)</li>
+                    </ul>
+                    
+                    <h4 style="margin-top: 20px;">Attention Formula</h4>
+                    <div class="formula">
+Q = x W_q<br>
+K = x W_k<br>
+V = x W_v<br>
+<br>
+Attention(Q, K, V) = softmax(QK^T / √d_k) V<br>
+<br>
+Output = Attention(Q, K, V) W_o
+                    </div>
+                </div>
+
+                <h3>2. Rotary Position Embedding (RoPE)</h3>
+                <div class="layer-box">
+                    <p>RoPE encodes position information by rotating query and key vectors:</p>
+                    <div class="formula">
+For position m and dimension i:<br>
+RoPE(x, m) = x · cos(mθ_i) + rotate(x) · sin(mθ_i)<br>
+<br>
+where θ_i = 10000^(-2i/d)
+                    </div>
+                    <p><strong>Advantage:</strong> Relative position encoding that works well for long sequences</p>
+                </div>
+
+                <h3>3. RMSNorm</h3>
+                <div class="layer-box">
+                    <p>Root Mean Square Layer Normalization - simpler than LayerNorm:</p>
+                    <div class="formula">
+RMSNorm(x) = x / RMS(x) * γ<br>
+<br>
+where RMS(x) = √(1/d Σx_i²)
+                    </div>
+                    <p><strong>Advantage:</strong> Faster computation, no bias term, similar performance to LayerNorm</p>
+                </div>
+
+                <h3>4. SiLU Activation</h3>
+                <div class="layer-box">
+                    <p>Sigmoid Linear Unit (also known as Swish):</p>
+                    <div class="formula">
+SiLU(x) = x · σ(x) = x / (1 + e^(-x))
+                    </div>
+                    <p><strong>Advantage:</strong> Smooth, non-monotonic, better gradient flow than ReLU</p>
+                </div>
+            </div>
+
+            <!-- Dense vs MoE Comparison -->
+            <div class="section">
+                <h2>⚖️ Layer 0 (Dense) vs Layers 1-27 (MoE) Comparison</h2>
+                
+                <table class="spec-table">
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Layer 0 (Dense)</th>
+                        <th>Layers 1-27 (MoE)</th>
+                    </tr>
+                    <tr>
+                        <td><strong>MLP Type</strong></td>
+                        <td>Standard MLP</td>
+                        <td>Mixture of Experts</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Intermediate Size</strong></td>
+                        <td>10,944</td>
+                        <td>1,408 per expert<br>2,816 for shared</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Parameters</strong></td>
+                        <td>~44.8M per layer</td>
+                        <td>~180M per layer (total)<br>~5.8M per expert<br>~11.5M shared</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Active Parameters</strong></td>
+                        <td>All 44.8M</td>
+                        <td>~17-29M (depends on top-k)<br>(selected experts + shared)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Computation</strong></td>
+                        <td>Fixed, all parameters used</td>
+                        <td>Dynamic, sparse activation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Specialization</strong></td>
+                        <td>General purpose</td>
+                        <td>Experts can specialize</td>
+                    </tr>
+                </table>
+
+                <div class="warning-box">
+                    <strong>⚠️ Why Layer 0 is Dense:</strong> The first layer typically uses a dense MLP to provide a strong initial representation before introducing the routing complexity of MoE layers.
+                </div>
+            </div>
+
+            <!-- Mathematical Formulations -->
+            <div class="section">
+                <h2>📐 Complete Mathematical Formulations</h2>
+
+                <h3>Dense MLP (Layer 0)</h3>
+                <div class="formula">
+<strong>Input:</strong> x ∈ ℝ^(2048)<br>
+<br>
+gate = x W_gate  # ℝ^(2048) → ℝ^(10944)<br>
+up = x W_up      # ℝ^(2048) → ℝ^(10944)<br>
+<br>
+hidden = SiLU(gate) ⊙ up  # Element-wise multiplication<br>
+<br>
+output = hidden W_down  # ℝ^(10944) → ℝ^(2048)
+                </div>
+
+                <h3>MoE Layer (Layers 1-27)</h3>
+                <div class="formula">
+<strong>Input:</strong> x ∈ ℝ^(2048)<br>
+<br>
+<strong>1. Routing:</strong><br>
+logits = Gate(x)  # ℝ^(2048) → ℝ^(64)<br>
+weights, indices = TopK(Softmax(logits), k=K)<br>
+<br>
+<strong>2. Expert Computation:</strong><br>
+For each selected expert i:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;gate_i = x W_gate_i  # ℝ^(2048) → ℝ^(1408)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;up_i = x W_up_i      # ℝ^(2048) → ℝ^(1408)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;hidden_i = SiLU(gate_i) ⊙ up_i<br>
+&nbsp;&nbsp;&nbsp;&nbsp;expert_out_i = hidden_i W_down_i  # ℝ^(1408) → ℝ^(2048)<br>
+<br>
+<strong>3. Weighted Sum:</strong><br>
+routed = Σ(weights[i] * expert_out_i) for i in selected experts<br>
+<br>
+<strong>4. Shared Expert:</strong><br>
+gate_s = x W_gate_s  # ℝ^(2048) → ℝ^(2816)<br>
+up_s = x W_up_s      # ℝ^(2048) → ℝ^(2816)<br>
+hidden_s = SiLU(gate_s) ⊙ up_s<br>
+shared = hidden_s W_down_s  # ℝ^(2816) → ℝ^(2048)<br>
+<br>
+<strong>5. Final Output:</strong><br>
+output = routed + shared
+                </div>
+
+                <h3>Complete Decoder Layer</h3>
+                <div class="formula">
+<strong>Function DecoderLayer(x):</strong><br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;# Self-Attention Block<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x_norm = RMSNorm(x)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;attn_out = SelfAttention(x_norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x = x + attn_out  # Residual connection<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;# MLP/MoE Block<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x_norm = RMSNorm(x)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if layer == 0:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mlp_out = DenseMLP(x_norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;else:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mlp_out = MoE(x_norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x = x + mlp_out  # Residual connection<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;return x
+                </div>
+            </div>
+
+            <!-- Parameter Count -->
+            <div class="section">
+                <h2>🔢 Parameter Count Analysis</h2>
+                
+                <div class="grid-2">
+                    <div class="layer-box">
+                        <h4>Embedding & Output</h4>
+                        <ul style="margin-left: 20px;">
+                            <li><strong>Embedding:</strong> 102,400 × 2,048 = 209.7M</li>
+                            <li><strong>LM Head:</strong> 2,048 × 102,400 = 209.7M</li>
+                            <li><strong>Subtotal:</strong> ~419M (often shared)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="layer-box">
+                        <h4>Attention (All 28 Layers)</h4>
+                        <ul style="margin-left: 20px;">
+                            <li><strong>Per Layer:</strong> 4 × (2,048 × 2,048) = 16.8M</li>
+                            <li><strong>28 Layers:</strong> 28 × 16.8M = 470M</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="layer-box" style="background: #3498db; color: white;">
+                    <h4 style="color: white;">Layer 0 (Dense MLP)</h4>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>Gate:</strong> 2,048 × 10,944 = 22.4M</li>
+                        <li><strong>Up:</strong> 2,048 × 10,944 = 22.4M</li>
+                        <li><strong>Down:</strong> 10,944 × 2,048 = 22.4M</li>
+                        <li><strong>Total:</strong> ~67M</li>
+                    </ul>
+                </div>
+
+                <div class="layer-box" style="background: #e74c3c; color: white;">
+                    <h4 style="color: white;">Layers 1-27 (MoE)</h4>
+                    <p><strong>Per Expert:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>Gate: 2,048 × 1,408 = 2.9M</li>
+                        <li>Up: 2,048 × 1,408 = 2.9M</li>
+                        <li>Down: 1,408 × 2,048 = 2.9M</li>
+                        <li><strong>Subtotal per expert:</strong> ~8.7M</li>
+                    </ul>
+                    <p style="margin-top: 10px;"><strong>64 Experts:</strong> 64 × 8.7M = ~556M</p>
+                    
+                    <p style="margin-top: 10px;"><strong>Shared Expert:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>Gate: 2,048 × 2,816 = 5.8M</li>
+                        <li>Up: 2,048 × 2,816 = 5.8M</li>
+                        <li>Down: 2,816 × 2,048 = 5.8M</li>
+                        <li><strong>Subtotal:</strong> ~17M</li>
+                    </ul>
+                    
+                    <p style="margin-top: 10px;"><strong>Per MoE Layer:</strong> 556M + 17M = ~573M</p>
+                    <p><strong>27 MoE Layers:</strong> 27 × 573M = ~15.5B</p>
+                </div>
+
+                <div class="info-box">
+                    <h4>📊 Total Model Parameters</h4>
+                    <ul style="margin-left: 20px;">
+                        <li>Embeddings: ~419M (shared)</li>
+                        <li>Attention: ~470M</li>
+                        <li>Dense Layer 0: ~67M</li>
+                        <li>MoE Layers 1-27: ~15.5B</li>
+                        <li><strong>Grand Total: ~16.5B parameters</strong></li>
+                    </ul>
+                    <p style="margin-top: 10px;"><strong>But only activates:</strong> ~1-2B parameters per forward pass (sparse activation)</p>
+                </div>
+            </div>
+
+            <!-- Key Advantages -->
+            <div class="section">
+                <h2>✨ Key Advantages of This Architecture</h2>
+                
+                <div class="grid-2">
+                    <div class="layer-box" style="background: #27ae60; color: white;">
+                        <h4 style="color: white;">🚀 Efficiency</h4>
+                        <ul style="margin-left: 20px;">
+                            <li>Sparse activation: only use subset of parameters</li>
+                            <li>Better parameter efficiency than dense models</li>
+                            <li>Lower inference cost despite high param count</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="layer-box" style="background: #e67e22; color: white;">
+                        <h4 style="color: white;">🎯 Specialization</h4>
+                        <ul style="margin-left: 20px;">
+                            <li>Experts can specialize for different tasks</li>
+                            <li>Dynamic routing based on input content</li>
+                            <li>Better handling of diverse data</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="layer-box" style="background: #9b59b6; color: white;">
+                        <h4 style="color: white;">📈 Scalability</h4>
+                        <ul style="margin-left: 20px;">
+                            <li>Easy to add more experts without changing architecture</li>
+                            <li>Can scale to hundreds of billions of parameters</li>
+                            <li>Maintains reasonable compute requirements</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="layer-box" style="background: #3498db; color: white;">
+                        <h4 style="color: white;">🔄 Shared Expert Benefit</h4>
+                        <ul style="margin-left: 20px;">
+                            <li>Ensures baseline processing for all tokens</li>
+                            <li>Captures common patterns across inputs</li>
+                            <li>Stabilizes training and prevents collapse</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Design Choices -->
+            <div class="section">
+                <h2>🎨 Key Design Choices Explained</h2>
+
+                <h3>1. Why 64 Experts?</h3>
+                <div class="info-box">
+                    <p>64 experts provides a good balance:</p>
+                    <ul style="margin-left: 20px;">
+                        <li>Enough diversity for specialization</li>
+                        <li>Not so many that experts are underutilized</li>
+                        <li>Fits well with hardware (powers of 2)</li>
+                        <li>Manageable memory footprint per expert</li>
+                    </ul>
+                </div>
+
+                <h3>2. Why Smaller Experts (1408) vs Dense (10944)?</h3>
+                <div class="info-box">
+                    <p>Smaller individual experts because:</p>
+                    <ul style="margin-left: 20px;">
+                        <li>Total capacity is distributed: 64 × 1408 ≈ 90K vs 10944</li>
+                        <li>Allows more experts to fit in memory</li>
+                        <li>Encourages specialization (each expert has focused capacity)</li>
+                        <li>Better parameter efficiency with sparse activation</li>
+                    </ul>
+                </div>
+
+                <h3>3. Why Shared Expert?</h3>
+                <div class="info-box">
+                    <p>The shared expert (always active) is crucial for:</p>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>Training Stability:</strong> Prevents routing collapse</li>
+                        <li><strong>Common Knowledge:</strong> Learns universal patterns</li>
+                        <li><strong>Gradient Flow:</strong> Ensures all tokens get processed</li>
+                        <li><strong>Baseline Quality:</strong> Even if routing fails, output is reasonable</li>
+                    </ul>
+                </div>
+
+                <h3>4. Why Dense Layer 0?</h3>
+                <div class="info-box">
+                    <p>Starting with a dense layer because:</p>
+                    <ul style="margin-left: 20px;">
+                        <li>Builds strong initial representations</li>
+                        <li>No routing complexity needed early on</li>
+                        <li>Simpler gradient flow in early layers</li>
+                        <li>Common practice in MoE architectures</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Training Considerations -->
+            <div class="section">
+                <h2>🎓 Training Considerations</h2>
+
+                <h3>Load Balancing</h3>
+                <div class="warning-box">
+                    <p><strong>Challenge:</strong> Some experts may be used more than others, leading to:</p>
+                    <ul style="margin-left: 20px;">
+                        <li>Expert collapse (few experts do all the work)</li>
+                        <li>Wasted parameters (unused experts)</li>
+                        <li>Load imbalance across devices</li>
+                    </ul>
+                    <p style="margin-top: 10px;"><strong>Solutions:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <li>Load balancing loss: penalize uneven expert usage</li>
+                        <li>Expert capacity constraints</li>
+                        <li>Auxiliary losses to encourage diversity</li>
+                        <li>Shared expert helps mitigate this</li>
+                    </ul>
+                </div>
+
+                <h3>Top-K Selection</h3>
+                <div class="info-box">
+                    <p>The number of experts selected per token (k) affects:</p>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>k=1:</strong> Most efficient, highest specialization, riskier</li>
+                        <li><strong>k=2:</strong> Good balance (common choice)</li>
+                        <li><strong>k=4+:</strong> More robust, less efficient, less specialized</li>
+                    </ul>
+                    <p style="margin-top: 10px;">DeepSeek likely uses k=2 or k=1 + always-on shared expert</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

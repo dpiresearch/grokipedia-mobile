@@ -1,0 +1,13 @@
+# Install PyTorch first with CUDA support:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# Then install these packages:
+transformers==4.36.2
+accelerate>=0.20.0
+sentencepiece
+protobuf
+wheel
+
+# Flash Attention (optional, for better performance)
+# Install separately AFTER torch with:
+# pip install flash-attn --no-build-isolation
