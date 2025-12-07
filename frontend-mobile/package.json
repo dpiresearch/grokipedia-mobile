@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/copy-assets.js",
     "build": "next build",
     "dev": "next dev -p 3001",
     "lint": "eslint .",

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { existsSync } from 'fs'
 
-const PROJECT_ROOT = resolve(process.cwd(), '..')
+const PROJECT_ROOT = process.cwd()
 const FAQ_CONTENT_PATH = join(
   PROJECT_ROOT,
   'paper-manim-viz-explanations/deepseek-moe-explainer/faq-summary/cursor_deepseek_model_forward_pass_in_h_comprehensive_summary.md'

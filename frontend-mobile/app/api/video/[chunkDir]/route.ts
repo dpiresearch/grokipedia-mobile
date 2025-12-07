@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { existsSync } from 'fs'
 
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { chunkDir } = params
-    const PROJECT_ROOT = resolve(process.cwd(), '..')
+    const PROJECT_ROOT = process.cwd()
     const videoPath = join(
       PROJECT_ROOT,
       'paper-manim-viz-explanations/deepseek-moe-explainer/generated_videos/spmoe_architecture',

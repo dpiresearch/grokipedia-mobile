@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { existsSync } from 'fs'
 
-const PROJECT_ROOT = resolve(process.cwd(), '..')
+const PROJECT_ROOT = process.cwd()
 const FAQ_VIDEO_PATH = join(
   PROJECT_ROOT,
   'paper-manim-viz-explanations/deepseek-moe-explainer/generated_videos/faq_generated_videos_v3_full/faq_combined_video.mp4'

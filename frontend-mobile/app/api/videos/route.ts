@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { readdir, readFile } from 'fs/promises'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { existsSync } from 'fs'
 
-// Resolve paths relative to the project root (one level up from frontend-mobile)
-const PROJECT_ROOT = resolve(process.cwd(), '..')
+// Resolve paths relative to the current directory (paper-manim-viz-explanations is copied during build)
+const PROJECT_ROOT = process.cwd()
 const VIDEOS_DIR = join(PROJECT_ROOT, 'paper-manim-viz-explanations/deepseek-moe-explainer/generated_videos/spmoe_architecture')
 const SUMMARIES_DIR = join(PROJECT_ROOT, 'paper-manim-viz-explanations/deepseek-moe-explainer/chunk-summary/spmoe_architecture')
 
