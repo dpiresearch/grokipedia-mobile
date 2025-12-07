@@ -6,4 +6,4 @@ cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai && py
 
 cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai && python semantic_chunker.py --input-dir ../deepseek-moe-explainer/extracted_sections --output-dir ../deepseek-moe-explainer/chunks
 
-cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/aligner && python code_chunk_aligner.py --chunks-dir ../../deepseek-moe-explainer/chunks --code-dir ../../deepseek-moe-explainer/deepseek-code --output-dir ../../deepseek-moe-explainer/chunks-with-code
+cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/aligner && python code_chunk_aligner.py --chunks-dir ../../deepseek-moe-explainer/chunks --code-dir ../../deepseek-moe-explainer/deepseek-code --output-dir ../../deepseek-moe-explainer/chunks-with-codegit
