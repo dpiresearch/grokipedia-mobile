@@ -43,3 +43,37 @@ cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/summa
 
 # One-liner with pyenv activation (for fresh terminal):
 export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/summary_generator && for chunk in ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_*.md; do echo "========================================"; echo "Processing: $chunk"; python chunk_summary_generator.py --chunk-file "$chunk" --output-dir ../../deepseek-moe-explainer/chunk-summary; done
+
+# Single chunk:
+cd paper-manim-viz-explanations/ai/summary_generator && python chunk_summary_generator.py --chunk-file ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_01_deepseekmoe_overview.md --output-dir ../../deepseek-moe-explainer/chunk-summary
+
+# All chunks in a section:
+cd paper-manim-viz-explanations/ai/summary_generator && for chunk in ../../deepseek-moe-explainer/chunks-with-code/spmoe_architecture/chunk_*.md; do python chunk_summary_generator.py --chunk-file "$chunk" --output-dir ../../deepseek-moe-explainer/chunk-summary; done
+
+# ======================================
+# FAQ Video Generator Commands
+# ======================================
+
+# Generate video for a single FAQ (first one):
+cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos --limit 1
+
+# Generate videos for all FAQs:
+cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos
+
+# One-liner with pyenv activation (for fresh terminal):
+export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos
+
+# Start from a specific FAQ number:
+cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos --start-from 5
+
+# Generating Combined Videos - Command Used
+export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos_v2
+
+# V3 - Detailed FAQ video with code, diagrams, math explanations (first 3 FAQs)
+export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos_v3 --limit 3 --max-retries 5
+
+# V3 FULL - Detailed FAQ video with ALL 12 FAQs (code, diagrams, math, step-by-step)
+export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos_v3_full --max-retries 5
+
+# command to generate full video
+export PYENV_ROOT="$HOME/.pyenv" && export PATH="$PYENV_ROOT/bin:$PATH" && eval "$(pyenv init -)" && eval "$(pyenv virtualenv-init -)" && pyenv activate deepseek-moe && cd /home/ubuntu/github/grokipedia-research/paper-manim-viz-explanations/ai/manim_video_generator_faqs && python faq_video_generator.py --faq-file ../../deepseek-moe-explainer/deepseek-moe-faqs/cursor_deepseek_model_forward_pass_in_h.md --output-dir ../../deepseek-moe-explainer/generated_videos/faq_generated_videos_v3_full --max-retries 5 2>&1 | tail -100
