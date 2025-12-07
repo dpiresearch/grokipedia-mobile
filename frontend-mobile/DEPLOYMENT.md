@@ -42,9 +42,10 @@ For production, consider:
 ## Build Configuration
 
 The `next.config.mjs` is configured with:
-- `output: 'standalone'` for optimized production builds
 - TypeScript build errors ignored (for faster builds)
 - Unoptimized images (for compatibility)
+
+**Note**: A prebuild script (`scripts/copy-assets.js`) automatically copies the `paper-manim-viz-explanations` directory into `frontend-mobile` during the build process. This ensures all assets are available for the API routes.
 
 ## Testing Locally
 
