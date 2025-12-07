@@ -89,14 +89,28 @@ export function PaperSubmissionPage() {
     setVideos([])
     setFaqs([])
     
-    // Load videos after submission
+    // Wait 2 seconds before loading content (with animation)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    
+    // Load videos and FAQs after delay
     try {
-      const response = await fetch('/api/videos')
-      if (response.ok) {
-        const data = await response.json()
-        setVideos(data.videos || [])
-        setFaqs(data.videos || [])
+      // Load videos
+      const videosResponse = await fetch('/api/videos')
+      if (videosResponse.ok) {
+        const videosData = await videosResponse.json()
+        setVideos(videosData.videos || [])
       }
+      
+      // Load FAQ (single item)
+      const faqItem: VideoItem = {
+        id: 'faq_1',
+        title: 'DeepSeek MoE Transformer: Forward Pass and Context Mechanics',
+        description: 'Comprehensive exploration of DeepSeek\'s Mixture of Experts transformer implementation, focusing on forward pass architecture, context handling mechanisms, and mathematical foundations.',
+        videoPath: '/api/faq-video',
+        chunkNumber: 0,
+        header: 'faq_combined_video',
+      }
+      setFaqs([faqItem])
     } catch (error) {
       console.error('Error loading videos:', error)
     } finally {
@@ -220,23 +234,29 @@ export function PaperSubmissionPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-80 overflow-y-auto pr-2">
-                  {isLoadingVideos ? (
+                  {isLoadingVideos || isSubmitting ? (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                        <p className="text-center text-sm">Loading videos...</p>
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="relative">
+                          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          </div>
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-medium">Processing your paper...</p>
+                          <p className="text-xs text-muted-foreground">Generating videos and content</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
                       </div>
                     </div>
                   ) : videos.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
-                      {isSubmitting ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                          <p className="text-center text-sm">Generating videos...</p>
-                        </div>
-                      ) : (
-                        <p className="text-center text-sm">No videos available</p>
-                      )}
+                      <p className="text-center text-sm">No videos available</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -264,23 +284,29 @@ export function PaperSubmissionPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-80 overflow-y-auto pr-2">
-                  {isLoadingVideos ? (
+                  {isLoadingVideos || isSubmitting ? (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                        <p className="text-center text-sm">Loading videos...</p>
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="relative">
+                          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          </div>
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-medium">Processing your paper...</p>
+                          <p className="text-xs text-muted-foreground">Generating FAQ content</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
                       </div>
                     </div>
                   ) : faqs.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
-                      {isSubmitting ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                          <p className="text-center text-sm">Generating FAQ videos...</p>
-                        </div>
-                      ) : (
-                        <p className="text-center text-sm">No FAQ videos available</p>
-                      )}
+                      <p className="text-center text-sm">No FAQ videos available</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -310,15 +336,17 @@ function VideoCard({ video }: { video: VideoItem }) {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase())
   
-  // Extract chunkDir from videoPath (e.g., /api/video/chunk_01_deepseekmoe_overview)
-  const chunkDir = video.videoPath.replace('/api/video/', '')
+  // Determine if this is an FAQ video or regular video
+  const isFaqVideo = video.videoPath === '/api/faq-video'
   
   const handleWatchClick = async () => {
     setIsModalOpen(true)
     setIsLoadingContent(true)
     
     try {
-      const response = await fetch(`/api/video-content/${chunkDir}`)
+      // Use different API endpoint for FAQ vs regular videos
+      const apiEndpoint = isFaqVideo ? '/api/faq-content' : `/api/video-content/${video.videoPath.replace('/api/video/', '')}`
+      const response = await fetch(apiEndpoint)
       if (response.ok) {
         const data = await response.json()
         setFullContent(data.content || "")
