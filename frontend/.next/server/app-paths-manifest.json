@@ -1,0 +1,8 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/video-content/[chunkDir]/route": "app/api/video-content/[chunkDir]/route.js",
+  "/api/video/[chunkDir]/route": "app/api/video/[chunkDir]/route.js",
+  "/api/videos/route": "app/api/videos/route.js",
+  "/page": "app/page.js"
+}

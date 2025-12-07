@@ -1,0 +1,3 @@
+{
+  "/api/video/[chunkDir]/route": "app/api/video/[chunkDir]/route.js"
+}
