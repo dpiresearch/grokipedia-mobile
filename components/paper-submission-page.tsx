@@ -7,124 +7,34 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Upload, Link, FileText, Play, Loader2 } from "lucide-react"
+import { InlineMath, BlockMath } from 'react-katex'
+import 'katex/dist/katex.min.css'
 
 interface VideoItem {
   id: string
   title: string
   description: string
-  videoUrl: string
-  thumbnail: string
+  videoPath: string
+  chunkNumber: number
+  header: string
 }
-
-const mockVideos: VideoItem[] = [
-  {
-    id: "v1",
-    title: "Paper Overview",
-    description:
-      "This animation provides a high-level overview of the paper's main contributions, including the novel architecture proposed and its key innovations in the field of machine learning.",
-    videoUrl: "#",
-    thumbnail: "/research-paper-overview-animation.jpg",
-  },
-  {
-    id: "v2",
-    title: "Methodology Explained",
-    description:
-      "A detailed walkthrough of the methodology section, explaining the experimental setup, data collection process, and analysis techniques used throughout the study.",
-    videoUrl: "#",
-    thumbnail: "/scientific-methodology-diagram.jpg",
-  },
-  {
-    id: "v3",
-    title: "Results Visualization",
-    description:
-      "Visual representation of the key results and findings from the experiments, including performance comparisons with baseline methods and statistical significance.",
-    videoUrl: "#",
-    thumbnail: "/data-visualization-charts.png",
-  },
-  {
-    id: "v4",
-    title: "Architecture Deep Dive",
-    description:
-      "An in-depth explanation of the neural network architecture, layer configurations, attention mechanisms, and how data flows through the model during inference.",
-    videoUrl: "#",
-    thumbnail: "/neural-network-architecture.png",
-  },
-  {
-    id: "v5",
-    title: "Training Process",
-    description:
-      "Visualization of the training process including loss curves, optimization strategies, learning rate schedules, and convergence behavior over epochs.",
-    videoUrl: "#",
-    thumbnail: "/training-loss-curve-graph.jpg",
-  },
-  {
-    id: "v6",
-    title: "Comparison with SOTA",
-    description:
-      "Side-by-side comparison of the proposed method with state-of-the-art approaches, highlighting improvements in accuracy, speed, and resource efficiency.",
-    videoUrl: "#",
-    thumbnail: "/benchmark-comparison-chart.jpg",
-  },
-]
-
-const mockFaqs: VideoItem[] = [
-  {
-    id: "f1",
-    title: "What problem does this paper solve?",
-    description:
-      "This video explains the core problem addressed by the paper and why it matters for the research community and practical applications in industry.",
-    videoUrl: "#",
-    thumbnail: "/question-mark-research-concept.jpg",
-  },
-  {
-    id: "f2",
-    title: "How does the proposed method work?",
-    description:
-      "A simplified explanation of the proposed method, breaking down complex concepts into understandable components with visual aids and step-by-step diagrams.",
-    videoUrl: "#",
-    thumbnail: "/algorithm-flowchart-explanation.jpg",
-  },
-  {
-    id: "f3",
-    title: "What are the limitations?",
-    description:
-      "An honest discussion of the limitations of the proposed approach and potential directions for future research to address them in subsequent work.",
-    videoUrl: "#",
-    thumbnail: "/research-limitations-warning-icon.jpg",
-  },
-  {
-    id: "f4",
-    title: "What datasets were used?",
-    description:
-      "Overview of the datasets used for training and evaluation, including their size, characteristics, preprocessing steps, and how they were split for experiments.",
-    videoUrl: "#",
-    thumbnail: "/database-dataset-collection-icon.jpg",
-  },
-  {
-    id: "f5",
-    title: "How can I reproduce the results?",
-    description:
-      "Step-by-step guide on reproducing the paper's results, including code availability, hardware requirements, hyperparameter settings, and expected runtime.",
-    videoUrl: "#",
-    thumbnail: "/code-reproducibility-checklist.jpg",
-  },
-  {
-    id: "f6",
-    title: "What are the real-world applications?",
-    description:
-      "Exploration of practical applications where this research can be applied, from healthcare diagnostics to autonomous systems and natural language processing.",
-    videoUrl: "#",
-    thumbnail: "/real-world-application-icons.jpg",
-  },
-]
 
 export function PaperSubmissionPage() {
   const [arxivUrl, setArxivUrl] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [videos, setVideos] = useState<VideoItem[]>(mockVideos)
-  const [faqs, setFaqs] = useState<VideoItem[]>(mockFaqs)
+  const [videos, setVideos] = useState<VideoItem[]>([])
+  const [faqs, setFaqs] = useState<VideoItem[]>([])
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false)
+  const [urlError, setUrlError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,9 +45,29 @@ export function PaperSubmissionPage() {
     }
   }
 
+  const validateUrl = (url: string): boolean => {
+    if (!url.trim()) return true // Empty is valid (not required if file is selected)
+    try {
+      const urlObj = new URL(url)
+      // Check if it's an arxiv.org URL
+      return urlObj.hostname === 'arxiv.org' || urlObj.hostname === 'www.arxiv.org'
+    } catch {
+      return false
+    }
+  }
+
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setArxivUrl(e.target.value)
-    if (e.target.value) {
+    const value = e.target.value
+    setArxivUrl(value)
+    
+    // Validate URL
+    if (value.trim() && !validateUrl(value)) {
+      setUrlError("Please enter a valid ArXiv URL (e.g., https://arxiv.org/abs/...)")
+    } else {
+      setUrlError("")
+    }
+    
+    if (value) {
       setSelectedFile(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
@@ -147,24 +77,32 @@ export function PaperSubmissionPage() {
 
   const handleSubmit = async () => {
     if (!arxivUrl && !selectedFile) return
+    
+    // Validate URL if provided
+    if (arxivUrl.trim() && !validateUrl(arxivUrl)) {
+      setUrlError("Please enter a valid ArXiv URL (e.g., https://arxiv.org/abs/...)")
+      return
+    }
 
     setIsSubmitting(true)
+    setIsLoadingVideos(true)
     setVideos([])
     setFaqs([])
-
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    for (let i = 0; i < mockVideos.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      setVideos((prev) => [...prev, mockVideos[i]])
+    
+    // Load videos after submission
+    try {
+      const response = await fetch('/api/videos')
+      if (response.ok) {
+        const data = await response.json()
+        setVideos(data.videos || [])
+        setFaqs(data.videos || [])
+      }
+    } catch (error) {
+      console.error('Error loading videos:', error)
+    } finally {
+      setIsSubmitting(false)
+      setIsLoadingVideos(false)
     }
-
-    for (let i = 0; i < mockFaqs.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      setFaqs((prev) => [...prev, mockFaqs[i]])
-    }
-
-    setIsSubmitting(false)
   }
 
   return (
@@ -195,7 +133,11 @@ export function PaperSubmissionPage() {
                   value={arxivUrl}
                   onChange={handleUrlChange}
                   disabled={isSubmitting}
+                  className={urlError ? "border-destructive" : ""}
                 />
+                {urlError && (
+                  <p className="text-sm text-destructive">{urlError}</p>
+                )}
               </div>
 
               <div className="relative">
@@ -278,7 +220,14 @@ export function PaperSubmissionPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-80 overflow-y-auto pr-2">
-                  {videos.length === 0 ? (
+                  {isLoadingVideos ? (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <p className="text-center text-sm">Loading videos...</p>
+                      </div>
+                    </div>
+                  ) : videos.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
                       {isSubmitting ? (
                         <div className="flex flex-col items-center gap-2">
@@ -286,7 +235,7 @@ export function PaperSubmissionPage() {
                           <p className="text-center text-sm">Generating videos...</p>
                         </div>
                       ) : (
-                        <p className="text-center text-sm">Submit a paper to generate videos</p>
+                        <p className="text-center text-sm">No videos available</p>
                       )}
                     </div>
                   ) : (
@@ -315,7 +264,14 @@ export function PaperSubmissionPage() {
               </CardHeader>
               <CardContent>
                 <div className="h-80 overflow-y-auto pr-2">
-                  {faqs.length === 0 ? (
+                  {isLoadingVideos ? (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <p className="text-center text-sm">Loading videos...</p>
+                      </div>
+                    </div>
+                  ) : faqs.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
                       {isSubmitting ? (
                         <div className="flex flex-col items-center gap-2">
@@ -323,7 +279,7 @@ export function PaperSubmissionPage() {
                           <p className="text-center text-sm">Generating FAQ videos...</p>
                         </div>
                       ) : (
-                        <p className="text-center text-sm">Submit a paper to generate FAQ videos</p>
+                        <p className="text-center text-sm">No FAQ videos available</p>
                       )}
                     </div>
                   ) : (
@@ -344,23 +300,246 @@ export function PaperSubmissionPage() {
 }
 
 function VideoCard({ video }: { video: VideoItem }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [fullContent, setFullContent] = useState<string>("")
+  const [isLoadingContent, setIsLoadingContent] = useState(false)
+  
+  // Format header: replace underscores with spaces and capitalize words
+  const formattedHeader = video.header
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+  
+  // Extract chunkDir from videoPath (e.g., /api/video/chunk_01_deepseekmoe_overview)
+  const chunkDir = video.videoPath.replace('/api/video/', '')
+  
+  const handleWatchClick = async () => {
+    setIsModalOpen(true)
+    setIsLoadingContent(true)
+    
+    try {
+      const response = await fetch(`/api/video-content/${chunkDir}`)
+      if (response.ok) {
+        const data = await response.json()
+        setFullContent(data.content || "")
+      } else {
+        setFullContent("Content not available.")
+      }
+    } catch (error) {
+      console.error('Error loading content:', error)
+      setFullContent("Error loading content.")
+    } finally {
+      setIsLoadingContent(false)
+    }
+  }
+  
   return (
-    <div className="flex gap-4 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50">
-      <div className="relative flex-shrink-0">
-        <img
-          src={video.thumbnail || "/placeholder.svg"}
-          alt={video.title}
-          className="h-24 w-40 rounded-md object-cover"
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-transform hover:scale-110">
-            <Play className="h-5 w-5 text-foreground" />
+    <>
+      <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50">
+        <div className="flex gap-4">
+          <div className="relative flex-shrink-0 w-40 h-24 bg-muted rounded-md overflow-hidden">
+            {isPlaying ? (
+              <video
+                src={video.videoPath}
+                controls
+                className="w-full h-full object-cover"
+                onPause={() => setIsPlaying(false)}
+              />
+            ) : (
+              <>
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                  <Play className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div
+                  className="absolute inset-0 cursor-pointer"
+                  onClick={() => setIsPlaying(true)}
+                />
+              </>
+            )}
+          </div>
+          <div className="flex flex-col justify-center overflow-hidden flex-1">
+            <h4 className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+              {formattedHeader}
+            </h4>
+            <h3 className="font-semibold text-foreground mb-1">{video.title}</h3>
+            <p className="line-clamp-3 text-sm text-muted-foreground mb-2">{video.description}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleWatchClick}
+              className="w-fit"
+            >
+              <Play className="h-3 w-3 mr-1" />
+              Watch
+            </Button>
           </div>
         </div>
       </div>
-      <div className="flex flex-col justify-center overflow-hidden">
-        <h3 className="font-semibold text-foreground">{video.title}</h3>
-        <p className="line-clamp-3 text-sm text-muted-foreground">{video.description}</p>
+      
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{video.title}</DialogTitle>
+            <DialogDescription className="text-xs uppercase tracking-wide">
+              {formattedHeader}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 flex-1 min-h-0">
+            {/* Video Section */}
+            <div className="w-full h-96 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+              <video
+                src={video.videoPath}
+                controls
+                className="w-full h-full object-contain"
+                autoPlay
+              />
+            </div>
+            
+            {/* Text Section - Scrollable */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <h3 className="text-lg font-semibold mb-2">Content</h3>
+              <div className="flex-1 overflow-y-auto border rounded-lg p-4 bg-muted/30">
+                {isLoadingContent ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <MarkdownContent content={fullContent} />
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const renderLine = (line: string, index: number) => {
+    // Handle code blocks
+    if (line.startsWith('```')) {
+      return <br key={index} />
+    }
+    
+    // Handle headings
+    if (line.startsWith('# ')) {
+      return <h1 key={index} className="text-2xl font-bold mt-4 mb-2">{renderInlineMath(line.substring(2))}</h1>
+    } else if (line.startsWith('## ')) {
+      return <h2 key={index} className="text-xl font-bold mt-3 mb-2">{renderInlineMath(line.substring(3))}</h2>
+    } else if (line.startsWith('### ')) {
+      return <h3 key={index} className="text-lg font-semibold mt-2 mb-1">{renderInlineMath(line.substring(4))}</h3>
+    } else if (line.trim() === '') {
+      return <br key={index} />
+    }
+    
+    // Handle block math ($$...$$)
+    const blockMathRegex = /\$\$(.+?)\$\$/g
+    if (blockMathRegex.test(line)) {
+      const parts: (string | JSX.Element)[] = []
+      let lastIndex = 0
+      let match
+      blockMathRegex.lastIndex = 0
+      
+      while ((match = blockMathRegex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(renderInlineMath(line.substring(lastIndex, match.index)))
+        }
+        try {
+          parts.push(<BlockMath key={`block-${match.index}`} math={match[1]} />)
+        } catch (e) {
+          parts.push(<span key={`block-${match.index}`}>$${match[1]}$$</span>)
+        }
+        lastIndex = match.index + match[0].length
+      }
+      if (lastIndex < line.length) {
+        parts.push(renderInlineMath(line.substring(lastIndex)))
+      }
+      return <div key={index} className="mb-2">{parts}</div>
+    }
+    
+    // Regular paragraph with inline math and bold
+    return (
+      <p key={index} className="mb-2">
+        {renderInlineMath(line)}
+      </p>
+    )
+  }
+  
+  const renderInlineMath = (text: string) => {
+    const parts: (string | JSX.Element)[] = []
+    // Match inline math ($...$) but not block math ($$...$$)
+    // Use a simpler approach: find $ that's not preceded or followed by another $
+    let lastIndex = 0
+    let dollarIndex = -1
+    
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '$') {
+        // Check if it's part of block math ($$)
+        if (i < text.length - 1 && text[i + 1] === '$') {
+          i++ // Skip both $$
+          continue
+        }
+        // Check if previous char was also $
+        if (i > 0 && text[i - 1] === '$') {
+          continue // Skip this $ as it's part of $$
+        }
+        
+        if (dollarIndex === -1) {
+          // Opening $
+          if (i > lastIndex) {
+            parts.push(...renderBold(text.substring(lastIndex, i)))
+          }
+          dollarIndex = i
+        } else {
+          // Closing $
+          const mathContent = text.substring(dollarIndex + 1, i)
+          try {
+            parts.push(<InlineMath key={`math-${dollarIndex}`} math={mathContent} />)
+          } catch (e) {
+            parts.push(<span key={`math-${dollarIndex}`}>${mathContent}$</span>)
+          }
+          lastIndex = i + 1
+          dollarIndex = -1
+        }
+      }
+    }
+    
+    if (dollarIndex !== -1) {
+      // Unclosed math, treat as regular text
+      parts.push(...renderBold(text.substring(lastIndex)))
+    } else if (lastIndex < text.length) {
+      parts.push(...renderBold(text.substring(lastIndex)))
+    }
+    
+    return parts.length > 0 ? parts : renderBold(text)
+  }
+  
+  const renderBold = (text: string): (string | JSX.Element)[] => {
+    const parts: (string | JSX.Element)[] = []
+    const boldRegex = /\*\*(.+?)\*\*/g
+    let lastIndex = 0
+    let match
+    
+    while ((match = boldRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index))
+      }
+      parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>)
+      lastIndex = match.index + match[0].length
+    }
+    
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex))
+    }
+    
+    return parts.length > 0 ? parts : [text]
+  }
+  
+  return (
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      <div className="font-sans text-sm text-foreground leading-relaxed">
+        {content.split('\n').map((line, index) => renderLine(line, index))}
       </div>
     </div>
   )
